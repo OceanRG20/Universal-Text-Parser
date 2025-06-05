@@ -1,0 +1,30 @@
+# Web Scraping
+scrapy==2.11.0
+scrapy-playwright==0.0.30
+playwright==1.44.0
+requests==2.31.0
+beautifulsoup4==4.12.3
+lxml==5.2.1
+readability-lxml==0.8.1
+newspaper3k==0.2.8
+goose3==3.1.15
+trafilatura==1.6.1
+boilerpy3==1.0.4
+inscriptis==2.3.1
+
+# PDF Parsing
+PyMuPDF==1.24.1  # fitz
+
+# NLP & ML
+nltk==3.8.1
+spacy==3.7.4
+sentence-transformers==2.5.1
+scikit-learn==1.4.2
+transformers==4.41.2
+torch==2.3.0
+protobuf==4.25.3  # Required by transformers sometimes
+
+# System
+tqdm==4.66.4
+pandas==2.2.2  # If needed for any data cleaning
+regex==2024.4.16

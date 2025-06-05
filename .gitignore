@@ -1,0 +1,96 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+.ENV/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# PyCharm & VSCode
+.idea/
+.vscode/
+
+# Pytest
+.pytest_cache/
+coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Mypy
+.mypy_cache/
+.dmypy.json
+
+# Scrapy
+.scrapy/
+*.sqlite
+
+# NLP Models & Embeddings
+models/
+*.bin
+*.pt
+*.onnx
+*.npz
+
+# NLTK data
+nltk_data/
+models/nltk/
+
+# HuggingFace cache
+~/.cache/huggingface/
+~/.huggingface/
+
+# Transformer tokenizer/model files
+*.json
+*.h5
+*.tf
+tokenizer_config.json
+config.json
+
+# Playwright
+playwright.log
+playwright-report/
+playwright/.cache/
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.pdf
+*.DS_Store
+
+# OS-specific
+Thumbs.db
+.DS_Store
+
+# Ignore compiled crawled data
+summary.json
