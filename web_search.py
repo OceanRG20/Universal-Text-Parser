@@ -1,4 +1,3 @@
-
 import scrapy
 from lxml import html as lxml_html
 from goose3 import Goose
@@ -149,6 +148,149 @@ class WebSearch(scrapy.Spider):
             print(f"Reading:{url}")
             yield scrapy.Request(url=url, callback=self.parse_page, meta={'depth': 1})
 
+    def universal_page_parser(self, url, html, response=None, use_browser=False):
+        """
+        Universal parser to extract readable text from any webpage, using multiple strategies and robust fallbacks.
+        """
+        import logging
+        logger = logging.getLogger("universal_page_parser")
+        text = ""
+        tried = []
+        # 1. Special case: YouTube
+        youtube_match = re.search(r'(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})', url)
+        if youtube_match:
+            video_id = youtube_match.group(1)
+            try:
+                transcript = YouTubeTranscriptApi.get_transcript(video_id)
+                text = " ".join(entry['text'] for entry in transcript).strip()
+                tried.append("youtube_transcript_api")
+                if text:
+                    return text
+            except Exception as e:
+                logger.warning(f"YouTube transcript failed: {e}")
+
+        # 2. Try trafilatura (best for news, blogs, forums, e-commerce)
+        try:
+            trafilatura_text = trafilatura.extract(html, include_comments=False, include_tables=True)
+            tried.append("trafilatura")
+            if trafilatura_text and len(trafilatura_text.strip()) > 100:
+                return trafilatura_text.strip()
+        except Exception as e:
+            logger.warning(f"trafilatura failed: {e}")
+
+        # 3. Try boilerpy3
+        try:
+            boilerpy_text = extractors.ArticleExtractor().get_content(html)
+            tried.append("boilerpy3")
+            if boilerpy_text and len(boilerpy_text.strip()) > 100:
+                return boilerpy_text.strip()
+        except Exception as e:
+            logger.warning(f"boilerpy3 failed: {e}")
+
+        # 4. Try readability-lxml
+        try:
+            doc = Document(html)
+            soup = BeautifulSoup(doc.summary(), 'html.parser')
+            text_readability = soup.get_text(" ", strip=True)
+            tried.append("readability-lxml")
+            if text_readability and len(text_readability.strip()) > 100:
+                return text_readability.strip()
+        except Exception as e:
+            logger.warning(f"readability-lxml failed: {e}")
+
+        # 5. Try newspaper3k
+        try:
+            article = Article(url)
+            article.set_html(html)
+            article.parse()
+            text_newspaper = article.text or ""
+            tried.append("newspaper3k")
+            if text_newspaper and len(text_newspaper.strip()) > 100:
+                return text_newspaper.strip()
+        except Exception as e:
+            logger.warning(f"newspaper3k failed: {e}")
+
+        # 6. Try goose3
+        try:
+            goose_text = Goose().extract(raw_html=html).cleaned_text
+            tried.append("goose3")
+            if goose_text and len(goose_text.strip()) > 100:
+                return goose_text.strip()
+        except Exception as e:
+            logger.warning(f"goose3 failed: {e}")
+
+        # 7. Try inscriptis
+        try:
+            inscriptis_parsed = inscriptis_text(html)
+            tried.append("inscriptis")
+            if inscriptis_parsed and len(inscriptis_parsed.strip()) > 100:
+                return inscriptis_parsed.strip()
+        except Exception as e:
+            logger.warning(f"inscriptis failed: {e}")
+
+        # 8. Try lxml (all <p> tags)
+        try:
+            lxml_tree = lxml_html.fromstring(html)
+            lxml_text = " ".join(lxml_tree.xpath('//p//text()'))
+            tried.append("lxml <p>")
+            if lxml_text and len(lxml_text.strip()) > 100:
+                return lxml_text.strip()
+        except Exception as e:
+            logger.warning(f"lxml <p> failed: {e}")
+
+        # 9. Try BeautifulSoup (all <p>, <li>, <span>, <div>, headers)
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            tags = ['p', 'li', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+            bs_text = " ".join([t.get_text(" ", strip=True) for tag in tags for t in soup.find_all(tag)])
+            tried.append("BeautifulSoup all tags")
+            if bs_text and len(bs_text.strip()) > 100:
+                return bs_text.strip()
+        except Exception as e:
+            logger.warning(f"BeautifulSoup all tags failed: {e}")
+
+        # 10. Try PDF extraction if the URL looks like a PDF
+        if url.lower().endswith('.pdf') or (response and 'application/pdf' in response.headers.get('Content-Type', b'').decode(errors='ignore')):
+            try:
+                pdf_text = self.webpage_to_text(url)
+                tried.append("pdf")
+                if pdf_text and len(pdf_text.strip()) > 100:
+                    return pdf_text.strip()
+            except Exception as e:
+                logger.warning(f"PDF extraction failed: {e}")
+
+        # 11. Try browser rendering for JS-heavy sites (optional, slow)
+        if use_browser:
+            try:
+                with sync_playwright() as p:
+                    browser = p.chromium.launch()
+                    page = browser.new_page()
+                    page.goto(url, wait_until='networkidle')
+                    content = page.content()
+                    browser.close()
+                soup = BeautifulSoup(content, 'html.parser')
+                browser_text = " ".join([t.get_text(" ", strip=True) for t in soup.find_all(['p', 'li', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'])])
+                tried.append("playwright browser render")
+                if browser_text and len(browser_text.strip()) > 100:
+                    return browser_text.strip()
+            except Exception as e:
+                logger.warning(f"playwright browser render failed: {e}")
+
+        # 12. Heuristic fallback: extract all visible text
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            for script in soup(["script", "style", "noscript", "header", "footer", "nav", "aside", "form", "input", "button", "svg", "canvas", "iframe", "object", "embed", "img", "video", "audio"]):
+                script.decompose()
+            visible_text = soup.get_text(" ", strip=True)
+            tried.append("heuristic visible text")
+            if visible_text and len(visible_text.strip()) > 50:
+                return visible_text.strip()
+        except Exception as e:
+            logger.warning(f"heuristic visible text failed: {e}")
+
+        logger.warning(f"Universal parser failed to extract substantial text from {url}. Tried: {tried}")
+        return ""
+
     def parse_page(self, response):
         page_url = response.url
         if page_url in self.visited_urls:
@@ -166,7 +308,8 @@ class WebSearch(scrapy.Spider):
                 return
         else:
             html_content = response.text
-            final_text = self.extract_text_fallbacks(response.url, html_content, response)
+            # Use the new universal parser
+            final_text = self.universal_page_parser(response.url, html_content, response)
 
         if not final_text:
             return
@@ -186,85 +329,6 @@ class WebSearch(scrapy.Spider):
                         callback=self.parse_page,
                         meta={'depth': depth + 1, 'playwright': True, 'proxy': 'http://your-proxy:port'}
                     )
-
-    def extract_text_fallbacks(self, url, html, response):
-        try:
-            doc = Document(html)
-            soup = BeautifulSoup(doc.summary(), 'html.parser')
-            text_readability = soup.get_text(" ", strip=True)
-        except Exception:
-            text_readability = ""
-
-        try:
-            article = Article(url)
-            article.set_html(html)
-            article.parse()
-            text_newspaper = article.text or ""
-        except Exception:
-            text_newspaper = ""
-
-        try:
-            goose_text = Goose().extract(raw_html=html).cleaned_text
-        except Exception:
-            goose_text = ""
-
-        try:
-            trafilatura_text = trafilatura.extract(html)
-        except Exception:
-            trafilatura_text = ""
-
-        try:
-            boilerpy_text = extractors.ArticleExtractor().get_content(html)
-        except Exception:
-            boilerpy_text = ""
-
-        try:
-            lxml_tree = lxml_html.fromstring(html)
-            lxml_text = " ".join(lxml_tree.xpath('//p//text()'))
-        except Exception:
-            lxml_text = ""
-
-        try:
-            soup = BeautifulSoup(html, 'html.parser')
-            bs_text = " ".join(p.get_text() for p in soup.find_all('p'))
-        except Exception:
-            bs_text = ""
-
-        try:
-            inscriptis_parsed = inscriptis_text(html)
-        except Exception:
-            inscriptis_parsed = ""
-
-        text_options = [
-            text_newspaper, text_readability, goose_text, trafilatura_text,
-            boilerpy_text, lxml_text, bs_text, inscriptis_parsed
-        ]
-        final = max(text_options, key=lambda t: len(t.strip()) if t else 0, default="")
-
-        if not final:
-            try:
-                pdf_text = self.webpage_to_text(url)
-                if pdf_text:
-                    return pdf_text
-            except Exception:
-                pass
-
-        if not final:
-            try:
-                title = response.css('h1::text').get("")
-                paragraphs = response.css('p::text').getall()
-                final = title + " " + " ".join(paragraphs)
-            except Exception:
-                final = ""
-
-        if not final:
-            try:
-                sentences = re.findall(r'([A-Z][^.!?]*[.!?])', html)
-                final = " ".join(sentences)
-            except Exception:
-                final = ""
-
-        return final.strip()
 
     def webpage_to_text(self, url: str) -> str:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
