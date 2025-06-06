@@ -11,6 +11,7 @@ goose3==3.1.15
 trafilatura==1.6.1
 boilerpy3==1.0.4
 inscriptis==2.3.1
+youtube_transcript_api==1.0.3
 
 # PDF Parsing
 PyMuPDF==1.24.1  # fitz

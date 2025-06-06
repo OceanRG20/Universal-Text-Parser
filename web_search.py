@@ -773,8 +773,8 @@ def search_web(query: str):
     return retrieved_answer
 
 if __name__ == "__main__":
-    print(search_web("Oblivion Remastered duplication glitch"))
-   # print(search_web("current president of USA?"))
+   # print(search_web("Oblivion Remastered duplication glitch"))
+   print(search_web("current president of USA?"))
    # print(search_web("what are the latest AI models?"))
    # print(search_web("current price of mountain dew?"))
    # print(search_web("current temperature in Kansas City MO?"))
