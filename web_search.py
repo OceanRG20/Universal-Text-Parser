@@ -30,6 +30,20 @@ from multiprocessing import Process, Pipe
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound, VideoUnavailable
 import re
 import torch
+import sys
+
+# Set the correct Twisted reactor before importing Scrapy
+if sys.platform.startswith("win"):
+    import asyncio
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+from twisted.internet import asyncioreactor
+try:
+    asyncioreactor.install()
+except Exception:
+    pass  # Already installed
+
+
 # Custom path for storing nltk data
 NLTK_DATA_PATH = "models/nltk"
 os.makedirs(NLTK_DATA_PATH, exist_ok=True)
@@ -774,7 +788,13 @@ def search_web(query: str):
 
 if __name__ == "__main__":
    # print(search_web("Oblivion Remastered duplication glitch"))
-   print(search_web("current president of USA?"))
+   # print(search_web("current president of USA?"))
    # print(search_web("what are the latest AI models?"))
    # print(search_web("current price of mountain dew?"))
-   # print(search_web("current temperature in Kansas City MO?"))
+   # print(search_web("current temperature in Kansas City MO?"
+    
+        query_value = "What is the best free photo editor in 2025?"
+        result = search_web(query_value)
+
+        with open("output.txt", "w", encoding="utf-8") as f:
+            f.write(result)
