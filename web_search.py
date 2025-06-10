@@ -292,6 +292,7 @@ class WebSearch(scrapy.Spider):
         return ""
 
     def parse_page(self, response):
+        
         page_url = response.url
         if page_url in self.visited_urls:
             return
